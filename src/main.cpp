@@ -45,8 +45,9 @@
 #include <Arduino.h>
 
 //uncomment to use the dmp processor rather than the manual calculations of quaternions
-#define dmp
+#define USE_DMP
 // #define IMU_DEBUG
+#define NMEA_SERIAL
 
 #include <Preferences.h>
 #include <esp32-hal-ledc.h>
@@ -99,8 +100,6 @@ int variosamplecnt = 0;
 float oldvarioavge = 0.0;
 int net_vario = 25; //default to 1/2s integrated vario;
 
-float refAltitudeAtInitCm = 0.0f;
-
 int32_t audioCps;
 int audiochannel = 0;
 
@@ -139,22 +138,20 @@ uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
 uint16_t fifoCount = 0;     // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64]; // FIFO storage buffer
 
-						// orientation/motion vars
+// orientation/motion vars
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorInt16 aa;         // [x, y, z]            accel sensor measurements
 VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
 VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
-
-						// packet structure for InvenSense teapot demo
-uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
+float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 
 int maximum(int a, int b) {
 	return (a > b ? a : b);
 }
 
-static uint8_t btmsg_nmeaChecksum(const char *szNMEA){
+static uint8_t nmeaChecksum(const char *szNMEA){
     const char* sz = &szNMEA[1]; // skip leading '$'
     uint8_t cksum = 0;
 
@@ -469,7 +466,7 @@ void setup() {
 	kfzVariance = preferences.getInt("kfzVar", KF_ZPRESS_VARIANCE);
 	kazVariance = preferences.getInt("kfazVar", KF_ZACCEL_VARIANCE);
 
-#ifndef dmp
+#ifndef USE_DMP
 	imu.axBias_ = ax_offset;
 	imu.ayBias_ = ay_offset;
 	imu.azBias_ = az_offset;
@@ -497,7 +494,7 @@ void setup() {
 
 	// configure MPU6050 to start generating gyro and accel data at 200Hz ODR	
 	
-#ifdef dmp
+#ifdef USE_DMP
 	// load and configure the DMP
 	Serial.println(F("Initializing DMP..."));
 	devStatus = mpu.dmpInitialize();
@@ -572,7 +569,7 @@ void setup() {
 	
 
 
-#ifdef dmp
+#ifdef USE_DMP
 	mpu.setXGyroOffset(gx_offset);
 	mpu.setYGyroOffset(gy_offset);
 	mpu.setZGyroOffset(gz_offset);
@@ -586,7 +583,7 @@ void setup() {
 	// make sure it worked (returns 0 if so)
 	if (devStatus == 0) {
 
-#ifdef dmp
+#ifdef USE_DMP
 		// turn on the DMP, now that it's ready
 		Serial.println(F("Enabling DMP..."));
 		mpu.setDMPEnabled(true);
@@ -618,8 +615,6 @@ void setup() {
 	baro.AveragedSample(4);
 	baro.InitializeSampleStateMachine();
 
-	refAltitudeAtInitCm = baro.zCmAvg_;
-
 	// //save the calculated variances
 	// preferences.putInt("kfzVar", int(kfzVariance));
 	// preferences.putInt("kfazVar", int(kazVariance));
@@ -650,7 +645,7 @@ void setup() {
 
 void loop() {
 	
-#ifdef dmp
+#ifdef USE_DMP
 
 	// wait for MPU interrupt or extra packet(s) available
 	while (!drdyFlag && fifoCount < packetSize) {
@@ -721,6 +716,13 @@ void loop() {
 		Serial.print("\t");
 		Serial.println(aaWorld.z);*/
 
+		mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+		// Serial.print("ypr\t");
+		// Serial.print(ypr[0] * 180/M_PI);
+		// Serial.print("\t");
+		// Serial.print(ypr[1] * 180/M_PI);
+		// Serial.print("\t");
+		// Serial.println(ypr[2] * 180/M_PI);
 
 	}
 #endif
@@ -734,7 +736,7 @@ void loop() {
 		cct_SetMarker(); // set origin for estimating the time taken to read and process the data
 #endif		
 
-#ifdef dmp
+#ifdef USE_DMP
 		float gravityCompensatedAccel = float(-aaWorld.z*(1.0f / MPU6050_2G_SENSITIVITY));
 		//Serial.print("gravity compensated accelration: "); Serial.println(gravityCompensatedAccel);
 #else
@@ -797,26 +799,50 @@ void loop() {
 				Serial.printf("bAlt = %d kfAlt = %d kfVario = %d\r\n", (int)baro.zCmSample_, (int)kfAltitudeCm, (int)kfClimbrateCps);
 
 #endif	
-				// OPENVARIO-NMEA OUTPUT
-				// https://www.openvario.org/doku.php?id=projects:series_00:software:nmea
-				char szmsg[100];
-				char szcksum[5];
-				sprintf(szmsg, "$POV,P,%.2f,T,%.2f,E,%.2f*", 
-					baro.paSample_/100.0f,   // P: static pressure in hPa
-					baro.tempCx100_/100.0f,  // T: temperature in deg C
-					avgeCps/100.0f           // E: TE vario in m/s
-					);
-				// TODO?
-				// S: true airspeed in km/h
-				// Q: dynamic pressure in Pa
-				// R: total pressure in hPa
-				// V: battery voltage in V
-				// 
-				uint8_t cksum = btmsg_nmeaChecksum(szmsg);
-				sprintf(szcksum,"%02X\r\n", cksum);
-				strcat(szmsg, szcksum);
-				Serial.println();
-				Serial.printf(szmsg);
+#ifdef NMEA_SERIAL
+				{
+					// OPENVARIO-NMEA OUTPUT
+					// https://www.openvario.org/doku.php?id=projects:series_00:software:nmea
+					char szmsg[100];
+					char szcksum[5];
+					sprintf(szmsg, "$POV,P,%.2f,T,%.2f,E,%.2f*", 
+						baro.paSample_/100.0f,   // P: static pressure in hPa
+						baro.tempCx100_/100.0f,  // T: temperature in deg C
+						avgeCps/100.0f           // E: TE vario in m/s
+						);
+					// TODO?
+					// S: true airspeed in km/h
+					// Q: dynamic pressure in Pa
+					// R: total pressure in hPa
+					// V: battery voltage in V
+					// 
+					uint8_t cksum = nmeaChecksum(szmsg);
+					sprintf(szcksum,"%02X\r\n", cksum);
+					strcat(szmsg, szcksum);
+					Serial.println();
+					Serial.printf(szmsg);
+				}
+
+				{
+					// PROP-NMEA OUTPUT
+					char szmsg[100];
+					char szcksum[5];
+					sprintf(szmsg, "$PFB,H,%.2f,I,%.2f,B,%.2f,A,%.2f,T,%.2f,E,%.2f*", 
+						RAD2DEG(ypr[0]),         // Heading == yaw  (deg)
+						RAD2DEG(ypr[1]),         // pItch           (deg)
+						RAD2DEG(ypr[2]),         // Bank == roll    (deg)
+						kfAltitudeCm/100.0f,     // Altitude        (m)
+						baro.tempCx100_/100.0f,  // Temperature (Celsius)
+						avgeCps/100.0f           // E: TE vario in m/s
+						);
+					uint8_t cksum = nmeaChecksum(szmsg);
+					sprintf(szcksum,"%02X\r\n", cksum);
+					strcat(szmsg, szcksum);
+					Serial.println();
+					Serial.printf(szmsg);
+				}
+
+#endif	
 
 		}		
 	}
