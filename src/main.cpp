@@ -33,21 +33,7 @@
 //cjmcu-117 module then just turn the board upside down and you get the same reults as the gy-86 which assumes the chips are up facing you
 //when used.
 
-// gy-86 interface
-// 3.3V  3.3v
-// GND  GND
-// SCL  GPIO21
-// SDA  GPIO22
-// INT  GPIO12
-// audio GPIO13
-// calibration button GPIO15
-
 #include <Arduino.h>
-
-//uncomment to use the dmp processor rather than the manual calculations of quaternions
-#define USE_DMP
-// #define IMU_DEBUG
-#define NMEA_SERIAL
 
 #include <Preferences.h>
 #include <esp32-hal-ledc.h>
@@ -102,13 +88,6 @@ int net_vario = 25; //default to 1/2s integrated vario;
 
 int32_t audioCps;
 int audiochannel = 0;
-
-
-int pinSDA = 4;
-int pinSCL = 5;
-int pinDRDYInt = 15;
-int pinAudio = 17;
-int pinCalibBtn = 12;
 
 
 volatile int drdyCounter;
@@ -404,10 +383,10 @@ void setup() {
 	
 	delay(10);
 
-  	SerialGPS.begin(9600, SERIAL_8N1, 13, 12);
+  	SerialGPS.begin(9600, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
 
 	delay(100); // delay(1) is required, additional delay so battery voltage can settle 
-	Serial.begin(115200);
+	Serial.begin(SERIAL_SPEED);
 	Serial.printf("\r\nESP32 MPU6050 MS56XX VARIO w/ GPS compiled on %s at %s\r\n", __DATE__, __TIME__);
 
 	Serial.println("Performing power management ops");
@@ -427,13 +406,13 @@ void setup() {
 	Serial.println("Mhz");
 
 
-	Wire.begin(pinSDA, pinSCL);
+	Wire.begin(PIN_SDA, PIN_SCL);
 	Wire.setClock(100000); // set clock frequency AFTER Wire.begin()
 
-	ledcAttachPin(pinAudio, audiochannel);
+	ledcAttachPin(PIN_AUDIO, audiochannel);
 	ledcSetup(audiochannel, 4000, 14);
 
-	audio.Config(pinAudio, audiochannel);
+	audio.Config(PIN_AUDIO, audiochannel);
 
 	int bv = batteryVoltage();
 	Serial.printf("battery voltage = %d.%dV\r\n", bv / 10, bv % 10);
@@ -489,8 +468,8 @@ void setup() {
 	drdyFlag = 0;
 	// INT output of MPU6050 is configured as push-pull, active high pulse. 
 	
-	pinMode(pinDRDYInt, INPUT);
-	attachInterrupt(digitalPinToInterrupt(pinDRDYInt), DRDYInterruptHandler, RISING);
+	pinMode(PIN_INT, INPUT);
+	attachInterrupt(digitalPinToInterrupt(PIN_INT), DRDYInterruptHandler, RISING);
 
 	// configure MPU6050 to start generating gyro and accel data at 200Hz ODR	
 	
@@ -517,15 +496,15 @@ void setup() {
 	// tone, save the calibration parameters to flash, and continue with normal vario operation
 
 	
-	pinMode(pinCalibBtn, INPUT_PULLUP); digitalWrite(pinCalibBtn, HIGH);
+	pinMode(PIN_CALIB, INPUT_PULLUP); digitalWrite(PIN_CALIB, HIGH);
 	int bCalibrateAccelerometer = 0;
 	// short beeps for ~5 seconds
 	for (int inx = 0; inx < 10; inx++) {
 		delay(500);
 		audio.GenerateTone(CALIB_TONE_FREQHZ, 50);
-		if (digitalRead(pinCalibBtn) == 0) {
+		if (digitalRead(PIN_CALIB) == 0) {
 			delay(100); // debounce the button
-			if (digitalRead(pinCalibBtn) == 0) {
+			if (digitalRead(PIN_CALIB) == 0) {
 				bCalibrateAccelerometer = 1;
 				break;
 			}
