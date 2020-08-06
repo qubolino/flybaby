@@ -1,28 +1,28 @@
-#ifndef MS5611_H_
-#define MS5611_H_
+#ifndef MS56XX_H_
+#define MS56XX_H_
 
-//#define MS5611_TEST
+//#define MS56XX_TEST
 
 // max conversion time with OSR=4096 is  9.04mS
-#define MS5611_SAMPLE_PERIOD_MS         10
+#define MS56XX_SAMPLE_PERIOD_MS         10
 
-#define MS5611_READ_TEMPERATURE 		11
-#define MS5611_READ_PRESSURE			22
+#define MS56XX_READ_TEMPERATURE 		11
+#define MS56XX_READ_PRESSURE			22
 
 
-#define MS5611_I2C_ADDRESS 0x77
+#define MS56XX_I2C_ADDRESS 0x77
 
-#define MS5611_RESET      	0x1E
-#define MS5611_CONVERT_D1 	0x40
-#define MS5611_CONVERT_D2 	0x50
-#define MS5611_ADC_READ   	0x00
+#define MS56XX_RESET      	0x1E
+#define MS56XX_CONVERT_D1 	0x40
+#define MS56XX_CONVERT_D2 	0x50
+#define MS56XX_ADC_READ   	0x00
 
-#define MS5611_ADC_4096 	0x08
+#define MS56XX_ADC_4096 	0x08
 
-class MS5611 {
+class MS56XX {
 	
 public :
-MS5611();
+MS56XX();
 void TriggerPressureSample(void);
 void TriggerTemperatureSample(void);
 uint32_t  ReadSample(void);
@@ -58,4 +58,4 @@ uint32_t D2_;
 int64_t dT_;
 };
 
-#endif // MS5611_H_
+#endif // MS56XX_H_

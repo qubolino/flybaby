@@ -46,9 +46,6 @@
 
 //uncomment to use the dmp processor rather than the manual calculations of quaternions
 #define dmp
-//Output Teapot is the Processing example from Jeff's mpu6050 library for arduino and works when DMP 
-//is enabled.
-//#define OUTPUT_TEAPOT
 // #define IMU_DEBUG
 
 #include <Preferences.h>
@@ -59,7 +56,7 @@
 #include "VarioAudio.h"
 #include "util.h"
 #include "pztbl.h"
-#include "MS5611.h"
+#include "MS56XX.h"
 #include "KalmanVario.h"
 #include "config.h"
 #include "cct.h"
@@ -130,7 +127,7 @@ int ax_offset, ay_offset, az_offset, gx_offset, gy_offset, gz_offset;
 Preferences preferences;
 MPU6050 mpu;  //used for mpu6050 dmp functionality
 MPU9250 imu; //6050 compatible. used for non dmp functionality. original code
-MS5611 baro;
+MS56XX baro;
 KalmanVario kf;
 VarioAudio audio;
 
@@ -214,7 +211,7 @@ void updateTime() {
 
 void powerDown() {
 	// residual current draw after power down is the sum of ESP8266 deep sleep mode current,
-	// MPU9250 sleep mode current, MS5611 standby current, quiescent current of voltage
+	// MPU9250 sleep mode current, MS56XX standby current, quiescent current of voltage
 	// regulators, and miscellaneous current through resistive paths e.g. the
 	// ADC voltage divider.
 	audio.SetFrequency(0); // switch off pwm audio 
@@ -246,11 +243,11 @@ void indicatePowerDown() {
 	audio.GenerateTone(250, 1000);
 }
 
-// problem with MS5611 calibration CRC, assume communication 
+// problem with MS56XX calibration CRC, assume communication 
 // error or bad device. Indicate with series of 10 high pitched beeps.
-void indicateFaultMS5611() {
+void indicateFaultMS56XX() {
 	for (int cnt = 0; cnt < 10; cnt++) {
-		audio.GenerateTone(MS5611_ERROR_TONE_FREQHZ, 1000);
+		audio.GenerateTone(MS56XX_ERROR_TONE_FREQHZ, 1000);
 		delay(100);
 	}
 }
@@ -414,7 +411,7 @@ void setup() {
 
 	delay(100); // delay(1) is required, additional delay so battery voltage can settle 
 	Serial.begin(115200);
-	Serial.printf("\r\nESP32 MPU6050 MS5609 VARIO compiled on %s at %s\r\n", __DATE__, __TIME__);
+	Serial.printf("\r\nESP32 MPU6050 MS56XX VARIO w/ GPS compiled on %s at %s\r\n", __DATE__, __TIME__);
 
 	Serial.println("Performing power management ops");
 	Serial.println("** Stopping WiFi+BT");
@@ -447,9 +444,9 @@ void setup() {
 	delay(1000);
 
 	if (!baro.ReadPROM()) {
-		Serial.printf("Bad CRC read from MS5611 calibration PROM\r\n");
+		Serial.printf("Bad CRC read from MS56XX calibration PROM\r\n");
 		Serial.flush();
-		indicateFaultMS5611(); // 10 high pitched beeps
+		indicateFaultMS56XX(); // 10 high pitched beeps
 		powerDown();   // try power-cycling to fix this
 	}
 
@@ -759,7 +756,7 @@ void loop() {
 		baroCounter++;
 		baroTimeDeltaSecs += imuTimeDeltaSecs;
 		//Serial.print("mpu time delta secs"); Serial.println(imuTimeDeltaSecs,3); //this should be 10ms
-		if (baroCounter >= 1) { // ~10mS elapsed, this is the sampling period for MS5611, 
+		if (baroCounter >= 1) { // ~10mS elapsed, this is the sampling period for MS56XX, 
 			baroCounter = 0;    // alternating between pressure and temperature samples
 
 			int zMeasurementAvailable = baro.SampleStateMachine(); // one z (altitude) sample calculated for every new pair of pressure & temperature samples
@@ -791,7 +788,6 @@ void loop() {
 			}
 		}
 
-		//if ((drdyCounter % 50) == 1) Serial.printf("bAlt = %d kfAlt = %d kfVario = %d\r\n", (int)baro.zCmSample_, (int)kfAltitudeCm, (int)avgeCps);
 		if (drdyCounter >= 100) {
 				drdyCounter = 0;
 				timeoutSeconds++; // 100 * 10mS = 1 second
@@ -821,14 +817,6 @@ void loop() {
 				strcat(szmsg, szcksum);
 				Serial.println();
 				Serial.printf(szmsg);
-
-				// sprintf(szmsg, "$XCTRC,,,,,,,,,,,,,,,,,%.2f,*", baro.paSample_/100.0f);
-				// cksum = btmsg_nmeaChecksum(szmsg);
-				// sprintf(szcksum,"%02X\r\n", cksum);
-				// strcat(szmsg, szcksum);
-				// Serial.printf(szmsg);
-
-
 
 		}		
 	}

@@ -39,7 +39,7 @@
 #define BATTERY_TONE_FREQHZ			400
 #define CALIB_TONE_FREQHZ			800
 #define MPU9250_ERROR_TONE_FREQHZ	200
-#define MS5611_ERROR_TONE_FREQHZ	2500
+#define MS56XX_ERROR_TONE_FREQHZ	2500
 
 // print useful information to the serial port for 
 // verifying correct operation. Comment out to prevent
