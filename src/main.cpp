@@ -48,8 +48,8 @@
 #include "config.h"
 #include "cct.h"
 #include "MPU6050_6Axis_MotionApps20.h"
-#include "MPU9250.h";
-#include "MahonyAHRS.h";
+#include "MPU9250.h"
+#include "MahonyAHRS.h"
 
 #include <HardwareSerial.h>
 
@@ -398,12 +398,12 @@ void setup() {
 	// esp_wifi_stop();
 	// btStop();
 	esp_bt_controller_disable();
-	Serial.print("** Setting CPU freq ");
-	Serial.print(getCpuFrequencyMhz());
-	setCpuFrequencyMhz(160);
-	Serial.print("Mhz --> ");
-	Serial.print(getCpuFrequencyMhz());
-	Serial.println("Mhz");
+	// Serial.print("** Setting CPU freq ");
+	// Serial.print(getCpuFrequencyMhz());
+	// setCpuFrequencyMhz(160);
+	// Serial.print("Mhz --> ");
+	// Serial.print(getCpuFrequencyMhz());
+	// Serial.println("Mhz");
 
 
 	Wire.begin(PIN_SDA, PIN_SCL);
@@ -638,13 +638,13 @@ void loop() {
 		// .
 		// .
 		// .
+		// Serial.println("Poll GPS");
 
 		while (SerialGPS.available()) {
 			char c = char(SerialGPS.read());
 			Serial.print(c);
 
 			if (drdyFlag){
-				Serial.println();
 				break;
 			}
 		}
@@ -798,7 +798,40 @@ void loop() {
 					uint8_t cksum = nmeaChecksum(szmsg);
 					sprintf(szcksum,"%02X\r\n", cksum);
 					strcat(szmsg, szcksum);
+					// Serial.println();
+					// Serial.printf(szmsg);
+				}
+
+				{
+					// EYE-NMEA OUTPUT
+					char szmsg[100];
+					char szcksum[5];
+					sprintf(szmsg, "$PEYA,%.2f,,%.2f,,,,,%.2f,%.2f,*", 
+						baro.paSample_/100.0f,   // P: static pressure in hPa
+						kfAltitudeCm/100.0f,
+						avgeCps/100.0f,           // E: TE vario in m/s
+						baro.tempCx100_/100.0f  // T: temperature in deg C
+						);
+					uint8_t cksum = nmeaChecksum(szmsg);
+					sprintf(szcksum,"%02X\r\n", cksum);
+					strcat(szmsg, szcksum);
 					Serial.println();
+					Serial.printf(szmsg);
+				}
+				{
+					// EYE-NMEA OUTPUT
+					char szmsg[100];
+					char szcksum[5];
+					sprintf(szmsg, "$PEYI,%.2f,%.2f,,,,%.2f,%.2f,%.2f,,%.2f,*", 
+						RAD2DEG(ypr[2]),         // Bank == roll    (deg)
+						RAD2DEG(ypr[1]),         // pItch           (deg)
+						aaReal.x/1000.0f, aaReal.y/1000.0f, aaReal.z/1000.0f,
+						RAD2DEG(ypr[0])          // Heading == yaw  (deg)
+						);
+					uint8_t cksum = nmeaChecksum(szmsg);
+					sprintf(szcksum,"%02X\r\n", cksum);
+					strcat(szmsg, szcksum);
+					// Serial.println();
 					Serial.printf(szmsg);
 				}
 
@@ -817,8 +850,8 @@ void loop() {
 					uint8_t cksum = nmeaChecksum(szmsg);
 					sprintf(szcksum,"%02X\r\n", cksum);
 					strcat(szmsg, szcksum);
-					Serial.println();
-					Serial.printf(szmsg);
+					// Serial.println();
+					// Serial.printf(szmsg);
 				}
 
 #endif	
