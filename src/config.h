@@ -46,9 +46,6 @@
 // data being spewed out continuously.
 // #define IMU_DEBUG
 
-//uncomment to use the dmp processor rather than the manual calculations of quaternions
-#define USE_DMP
-
 // uncomment to output NMEA sentences to serial
 #define NMEA_SERIAL
 #define SERIAL_SPEED 115200

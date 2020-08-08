@@ -48,7 +48,7 @@
 #include "config.h"
 #include "cct.h"
 #include "MPU6050_6Axis_MotionApps20.h"
-#include "MPU9250.h"
+// #include "MPU9250.h"
 #include "MahonyAHRS.h"
 
 #include <HardwareSerial.h>
@@ -104,7 +104,7 @@ int ax_offset, ay_offset, az_offset, gx_offset, gy_offset, gz_offset;
 
 Preferences preferences;
 MPU6050 mpu;  //used for mpu6050 dmp functionality
-MPU9250 imu; //6050 compatible. used for non dmp functionality. original code
+// MPU9250 imu; //6050 compatible. used for non dmp functionality. original code
 MS56XX baro;
 KalmanVario kf;
 VarioAudio audio;
@@ -200,6 +200,7 @@ void powerDown() {
 // set to 0, and this uncalibrated state is indicated with a sequence of alternating 
 // low and high beeps.
 void indicateUncalibratedAccelerometer() {
+	Serial.println("WARNING: Accelerometer not calibrated");
 	for (int cnt = 0; cnt < 5; cnt++) {
 		audio.GenerateTone(200, 500);
 		audio.GenerateTone(2000, 500);
@@ -398,12 +399,12 @@ void setup() {
 	// esp_wifi_stop();
 	// btStop();
 	esp_bt_controller_disable();
-	// Serial.print("** Setting CPU freq ");
-	// Serial.print(getCpuFrequencyMhz());
-	// setCpuFrequencyMhz(160);
-	// Serial.print("Mhz --> ");
-	// Serial.print(getCpuFrequencyMhz());
-	// Serial.println("Mhz");
+	Serial.print("** Setting CPU freq ");
+	Serial.print(getCpuFrequencyMhz());
+	setCpuFrequencyMhz(160);
+	Serial.print("Mhz --> ");
+	Serial.print(getCpuFrequencyMhz());
+	Serial.println("Mhz");
 
 
 	Wire.begin(PIN_SDA, PIN_SCL);
@@ -434,7 +435,6 @@ void setup() {
 	}
 
 	//read stored calibration parameters
-
 	preferences.begin("fastvario", false);
 	ax_offset = preferences.getInt("axBias", 0);
 	ay_offset = preferences.getInt("ayBias", 0);
@@ -444,15 +444,6 @@ void setup() {
 	gz_offset = preferences.getInt("gzBias", 0);
 	kfzVariance = preferences.getInt("kfzVar", KF_ZPRESS_VARIANCE);
 	kazVariance = preferences.getInt("kfazVar", KF_ZACCEL_VARIANCE);
-
-#ifndef USE_DMP
-	imu.axBias_ = ax_offset;
-	imu.ayBias_ = ay_offset;
-	imu.azBias_ = az_offset;
-	imu.gxBias_ = gx_offset;
-	imu.gyBias_ = gy_offset;
-	imu.gzBias_ = gz_offset;
-#endif
 
 	if ((ax_offset == 0) && (ay_offset == 0) && (az_offset == 0)) {
 		indicateUncalibratedAccelerometer(); // series of alternating low/high tones
@@ -473,15 +464,9 @@ void setup() {
 
 	// configure MPU6050 to start generating gyro and accel data at 200Hz ODR	
 	
-#ifdef USE_DMP
 	// load and configure the DMP
 	Serial.println(F("Initializing DMP..."));
 	devStatus = mpu.dmpInitialize();
-#else
-	imu.ConfigAccelGyro();
-	devStatus = 0;
-#endif
-
 
 
 	// Try to calibrate gyro each time on power up. if the unit is not at rest, give up
@@ -515,7 +500,7 @@ void setup() {
 	//uncomment next line to force calibration each power up until i get a button to hardwire calibration selection during powerup
 	//******
 	//******
-	//bCalibrateAccelerometer = 1;
+	// bCalibrateAccelerometer = 1;
 	if (bCalibrateAccelerometer) {
 		// acknowledge calibration button press with long tone
 		audio.GenerateTone(CALIB_TONE_FREQHZ, 3000);
@@ -544,25 +529,16 @@ void setup() {
 	}
 	// normal operation flow, attempt to calibrate gyro. If calibration isn't possible because the unit is disturbed,
 	// use the last saved gyro biases
-
-	
-
-
-#ifdef USE_DMP
 	mpu.setXGyroOffset(gx_offset);
 	mpu.setYGyroOffset(gy_offset);
 	mpu.setZGyroOffset(gz_offset);
 	mpu.setXAccelOffset(ax_offset);
 	mpu.setYAccelOffset(ay_offset);
 	mpu.setZAccelOffset(az_offset);
-#endif
-
-
 
 	// make sure it worked (returns 0 if so)
 	if (devStatus == 0) {
 
-#ifdef USE_DMP
 		// turn on the DMP, now that it's ready
 		Serial.println(F("Enabling DMP..."));
 		mpu.setDMPEnabled(true);
@@ -574,7 +550,6 @@ void setup() {
 
 		// get expected DMP packet size for later comparison		
 		packetSize = mpu.dmpGetFIFOPacketSize();
-#endif
 
 	}
 	else {
@@ -624,8 +599,6 @@ void setup() {
 
 void loop() {
 	
-#ifdef USE_DMP
-
 	// wait for MPU interrupt or extra packet(s) available
 	while (!drdyFlag && fifoCount < packetSize) {
 		// other program behavior stuff here
@@ -654,7 +627,6 @@ void loop() {
 
 	// get INT_STATUS byte
 	mpuIntStatus = mpu.getIntStatus();
-
 	// get current FIFO count
 	fifoCount = mpu.getFIFOCount();
 
@@ -704,8 +676,6 @@ void loop() {
 		// Serial.println(ypr[2] * 180/M_PI);
 
 	}
-#endif
-
 
 	if (drdyFlag) { // new MPU6050 data ready, 100Hz ODR => ~10mS sample interval
 
@@ -715,22 +685,8 @@ void loop() {
 		cct_SetMarker(); // set origin for estimating the time taken to read and process the data
 #endif		
 
-#ifdef USE_DMP
 		float gravityCompensatedAccel = float(-aaWorld.z*(1.0f / MPU6050_2G_SENSITIVITY));
-		//Serial.print("gravity compensated accelration: "); Serial.println(gravityCompensatedAccel);
-#else
-		// accelerometer samples (ax,ay,az) in milli-Gs, gyroscope samples (gx,gy,gz) in deg/second
-		imu.GetAccelGyroData(accel, gyro);
-		imu_MahonyAHRSupdateIMU(imuTimeDeltaSecs, gyro[0] * DEG_TO_RAD, gyro[1] * DEG_TO_RAD, gyro[2] * DEG_TO_RAD, accel[0], -accel[1], -accel[2]);
-		float gravityCompensatedAccel = imu_GravityCompensatedAccel(accel[0], -accel[1], -accel[2], q0, q1, q2, q3);
-		//Serial.print("gravity compensated accelration: "); Serial.println(gravityCompensatedAccel);
-		//Serial.print("Quaternio vector w x y z"); Serial.print(q0); Serial.print(" "); Serial.print(q1); Serial.print(" "); Serial.print(q2); Serial.print(" "); Serial.println(q3);
-		//Serial.print("ax "); Serial.print(accel[0], 4); Serial.print(" ay "); Serial.print(accel[1], 4); Serial.print(" az "); Serial.println(accel[2], 4);
-		//Serial.print("gx "); Serial.print(gyro[0], 4); Serial.print(" gy "); Serial.print(gyro[1], 4); Serial.print(" gz "); Serial.println(gyro[2], 4);
-		//Serial.print("q0 "); Serial.print(q0, 4); Serial.print(" q1 "); Serial.print(q1, 4); Serial.print(" q2 "); Serial.print(q2, 4); Serial.print(" q3 "); Serial.println(q3, 4);
-
-#endif
-
+		// Serial.print("gravity compensated accelration: "); Serial.println(gravityCompensatedAccel);
 
 		zAccelAccumulator += gravityCompensatedAccel; // one earth-z acceleration value computed every 10mS, accumulate
 
@@ -825,7 +781,9 @@ void loop() {
 					sprintf(szmsg, "$PEYI,%.2f,%.2f,,,,%.2f,%.2f,%.2f,,%.2f,*", 
 						RAD2DEG(ypr[2]),         // Bank == roll    (deg)
 						RAD2DEG(ypr[1]),         // pItch           (deg)
-						aaReal.x/1000.0f, aaReal.y/1000.0f, aaReal.z/1000.0f,
+						float(aaWorld.x*(1.0f / MPU6050_2G_SENSITIVITY)),
+						float(aaWorld.y*(1.0f / MPU6050_2G_SENSITIVITY)),
+						float(-aaWorld.z*(1.0f / MPU6050_2G_SENSITIVITY)),
 						RAD2DEG(ypr[0])          // Heading == yaw  (deg)
 						);
 					uint8_t cksum = nmeaChecksum(szmsg);
