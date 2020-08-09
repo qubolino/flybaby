@@ -4,16 +4,11 @@
 
 
 
-// Tracks the position z and velocity v of an object moving in a straight line,
-// (here assumed to be vertical) that is perturbed by random accelerations.
-// sensor measurement of z is assumed to have constant measurement noise 
-// variance zVariance.
-// This can be calculated offline for the specific sensor.
+// Tracks the position z and velocity v of an object moving in a straight line, (here assumed to be vertical) that is perturbed by random accelerations.
+// sensor measurement of z is assumed to have constant measurement noise variance zVariance. This can be calculated offline for the specific sensor.
 // zInitial can be determined by averaging a few samples of the altitude measurement.
 // vInitial and aBiasInitial can be set as 0.0
-// zAccelVariance can be specified with a large initial value to skew the 
-// filter towards the fresh data.
-
+// zAccelVariance can be specified with a large initial value to skew the filter towards the fresh data.
 
 void KalmanVario::Config(float zVariance, float zAccelVariance, float zAccelBiasVariance, float zInitial, float vInitial, float aBiasInitial) {
 	zAccelVariance_ = zAccelVariance;
