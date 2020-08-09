@@ -1,6 +1,10 @@
 # flybaby
 A sensor using esp32, mpu6050 in DMP mode and ms5607 (despite the class names) pressure sensor and GPS, publishing NMEA sentences on serial port. 
-I imagine it would work with ESP8266 instead of ESP32 with little changes, with mpu9150 or 9250 instead of mpu6050 with no change at all, and with ms5611 or ms5637 instead of ms5607 with very little changes.
+I imagine it would work 
+* with ESP8266 instead of ESP32 with little changes, 
+* with mpu9150 or 9250 instead of mpu6050 with no change at all, 
+* and with ms5611 or ms5637 instead of ms5607 with very little changes
+* any serial gps module outputing standard NMEA sentences
 
 Using platformio with Arduino framework.
 
@@ -19,7 +23,7 @@ I haven't taken it to fly yet but i can see from driving with it that the vario,
 1. get the sensor modules and connect them to esp32
    1. MPU6050 ic2 pins SDA 4, SCL 5, INTerrupt 15
    1. MS5607  ic2 pins SDA 4, SCL 5
-   1. serial GPS serial pin RX 13 (only this one is needed as we don't send instructions to GPS module)
+   1. serial GPS serial (mine is GN-801) pin RX 13 (only this one is needed as we don't send instructions to GPS module)
    1. pull-down or capacitive button on pin 12
    1. audio on pin 17 (still to be tested -- my device does not have audio for the time being)
 1. Get a KoBo mini and install XCsoar on it http://gethighstayhigh.co.uk/kobo-self-build/
