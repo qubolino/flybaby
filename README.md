@@ -11,7 +11,7 @@ Developed, compiled and uploaded using Platformio https://platformio.org with Ar
 
 After customization (pin-wise), subtle refactoring/adaptation, NMEA interfacing, and calibration I am able to make it work nicely with KoBo mini!
 
-![finished job](pics/fullsizeoutput_49e1.jpeg)
+![finished job](pics/IMG_4977.jpg)
 
 I haven't taken it to fly yet but i can see from driving with it that the vario, accel, horizon, gps speed, altitude all make sense.
 
