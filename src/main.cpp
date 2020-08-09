@@ -600,7 +600,7 @@ void setup() {
 void loop() {
 	
 	// wait for MPU interrupt or extra packet(s) available
-	while (!drdyFlag && fifoCount < packetSize) {
+	while (!drdyFlag && fifoCount < 4 * packetSize) {
 		// other program behavior stuff here
 		// .
 		// .
@@ -645,13 +645,11 @@ void loop() {
 		while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
 
 		// read a packet from FIFO
-
 		mpu.getFIFOBytes(fifoBuffer, packetSize);
 
 		// track FIFO count here in case there is > 1 packet available
 		// (this lets us immediately read more without waiting for an interrupt)
 		fifoCount -= packetSize;
-
 
 		// display initial world-frame acceleration, adjusted to remove gravity
 		// and rotated based on known orientation from quaternion
@@ -674,7 +672,6 @@ void loop() {
 		// Serial.print(ypr[1] * 180/M_PI);
 		// Serial.print("\t");
 		// Serial.println(ypr[2] * 180/M_PI);
-
 	}
 
 	if (drdyFlag) { // new MPU6050 data ready, 100Hz ODR => ~10mS sample interval
@@ -771,7 +768,7 @@ void loop() {
 					uint8_t cksum = nmeaChecksum(szmsg);
 					sprintf(szcksum,"%02X\r\n", cksum);
 					strcat(szmsg, szcksum);
-					Serial.println();
+					// Serial.println();
 					Serial.printf(szmsg);
 				}
 				{
