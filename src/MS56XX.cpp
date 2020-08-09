@@ -49,7 +49,6 @@ void MS56XX::Test(int nSamples, float *kfzVariance) {
         }
     paMean /= nSamples;
     zMean /= nSamples;
-    Serial.printf("paMean = %d Pa, zMean = %dcm\r\n",(int)paMean,(int)zMean);
     for (n = 0; n < nSamples; n++) {
         paVariance += (pa[n]-paMean)*(pa[n]-paMean);
         zVariance += (z[n]-zMean)*(z[n]-zMean);
@@ -57,6 +56,7 @@ void MS56XX::Test(int nSamples, float *kfzVariance) {
     paVariance /= (nSamples-1);
     zVariance /=  (nSamples-1);
 	*kfzVariance = zVariance;
+    Serial.printf("paMean = %d Pa (+/- %.2f@95%%), zMean = %dcm (+/- %.2f@95%%)\r\n",(int)paMean, 1.96*sqrt(paVariance)/sqrt(nSamples), (int)zMean, 1.96*sqrt(zVariance)/sqrt(nSamples));
     Serial.printf("\r\npaVariance %d  zVariance %d\r\n",(int)paVariance, (int)zVariance);
 	}
 #endif
