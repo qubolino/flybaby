@@ -22,7 +22,7 @@ I haven't taken it to fly yet but i can see from driving with it that the vario,
    1. serial GPS serial (mine is GN-801) pin RX 13 (only this one is needed as we don't send instructions to GPS module)
    1. pull-down or capacitive button on pin 12
    1. audio on pin 17 (still to be tested -- my device does not have audio for the time being)
-1. Get the right KoBo and [install XCsoar on it](http://max.kellermann.name/projects/xcsoar/kobo.html) (essentially copy the `KoboRoot.tgz` into the `.kobo` folder of your kobo).
+1. Get the right kobo and [install XCsoar on it](http://max.kellermann.name/projects/xcsoar/kobo.html) (essentially copy the `KoboRoot.tgz` into the `.kobo` folder of your kobo).
 1. Interface your sensor with serial either: 
    1. with a micro-usb <-> micro-usb in which case you will need to provide power to esp and sensors (possibly using the serial vcc pin of the kobo)
    1. directly [soldering on the kobo serial port](http://gethighstayhigh.co.uk/kobo-self-build/)
