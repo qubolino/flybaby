@@ -2,6 +2,7 @@
 #include "Wire.h"
 #include "MS56XX.h"
 
+#define MS5607
 
 MS56XX::MS56XX() {
 	paSample_ = 0.0f;
@@ -138,13 +139,35 @@ void MS56XX::CalculateTemperatureCx10(void) {
 float MS56XX::CalculatePressurePa(void) {
 	float pa;
     int64_t offset, sens,offset2,sens2,t2;
+#ifdef MS5607
 	offset = offT1_ + ((((int64_t)cal_[3])*dT_)>>6);
 	sens = sensT1_ + ((((int64_t)cal_[2])*dT_)>>7);
+#endif
+#ifdef MS5611
+	offset = offT1_ + ((((int64_t)cal_[3])*dT_)>>7);
+	sens = sensT1_ + ((((int64_t)cal_[2])*dT_)>>8);
+#endif
     if (tempCx100_ < 2000) { // correction for temperature < 20C
         t2 = ((dT_*dT_)>>31); 
-        offset2 = (5*(tempCx100_-2000)*(tempCx100_-2000))/2;
-        sens2 = offset2/2;
-        } 
+#ifdef MS5607
+        offset2 = 61  * (tempCx100_-2000) * (tempCx100_-2000) / 16;
+        sens2 = (tempCx100_-2000) * (tempCx100_-2000) / 2.0f;
+#endif
+#ifdef MS5611
+        offset2 = 5  * (tempCx100_-2000) * (tempCx100_-2000) / 2;
+        sens2 = offset2 / 2;
+#endif
+		if (tempCx100_ < -15000) { //correction for temperature < -15 C
+#ifdef MS5607
+			offset2 += 15 * (tempCx100_ + 1500) * (tempCx100_ + 1500);
+			sens2 += 8 * (tempCx100_ + 1500) * (tempCx100_ + 1500);
+#endif
+#ifdef MS5611
+			offset2 += 7 * (tempCx100_ + 1500) * (tempCx100_ + 1500);
+			sens2 += 11 * (tempCx100_ + 1500) * (tempCx100_ + 1500) / 2;
+#endif
+		}
+	} 
     else {
         t2 = 0;
         sens2 = 0;
@@ -155,7 +178,7 @@ float MS56XX::CalculatePressurePa(void) {
     sens -= sens2;
 	pa = (((float)((int64_t)D1_ * sens))/2097152.0f - (float)offset) / 32768.0f;
 	return pa;
-	}
+}
 
 
 /// Trigger a pressure sample with max oversampling rate
@@ -230,10 +253,16 @@ void MS56XX::GetCalibrationCoefficients(void)  {
 		}
     //Serial.printf("\r\nCalib Coeffs : %d %d %d %d %d %d\r\n",cal_[0],cal_[1],cal_[2],cal_[3],cal_[4],cal_[5]);
     tref_ = ((int64_t)cal_[4])<<8;
+#ifdef MS5607
     offT1_ = ((int64_t)cal_[1])<<17;
-    sensT1_ = ((int64_t)cal_[0])<<16;		
+    sensT1_ = ((int64_t)cal_[0])<<16;	
+#endif
+#ifdef MS5611
+    offT1_ = ((int64_t)cal_[1])<<16;
+    sensT1_ = ((int64_t)cal_[0])<<15;
+#endif
     }
-   
+
 int MS56XX::ReadPROM(void)    {
     for (int inx = 0; inx < 8; inx++) {
 		Wire.beginTransmission(MS56XX_I2C_ADDRESS); 
