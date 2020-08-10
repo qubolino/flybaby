@@ -8,7 +8,7 @@
 //the 9250 IMU.
 //
 //The majortity of this code was some great work by Jeff Rowberg for the
-//mpu6050 library and the i2cdevlib interface, and Hari Nair for the Vario design. 
+//mpu6050 library and the i2cdevlib interface, and Hari Nair for the Vario design (https://github.com/har-in-air/ESP32_IMU_BARO_GPS_VARIO). 
 //The calibration came from  Luis R�denas.
 
 //I integrated Jeff's MPU6050 library to take advantage of the 6050 dmp processing which works fine
@@ -39,7 +39,6 @@
 #include <esp32-hal-ledc.h>
 #include <Wire.h>
 
-
 #include "VarioAudio.h"
 #include "util.h"
 #include "pztbl.h"
@@ -48,7 +47,6 @@
 #include "config.h"
 #include "cct.h"
 #include "MPU6050_6Axis_MotionApps20.h"
-// #include "MPU9250.h"
 #include "MahonyAHRS.h"
 
 #include <HardwareSerial.h>
@@ -60,9 +58,7 @@ HardwareSerial SerialGPS(2);
 #include <esp_wifi.h>
 #include <esp_bt.h>
 
-
 extern "C" {
-
 }
 
 uint32_t timePreviousUs;
@@ -104,7 +100,6 @@ int ax_offset, ay_offset, az_offset, gx_offset, gy_offset, gz_offset;
 
 Preferences preferences;
 MPU6050 mpu;  //used for mpu6050 dmp functionality
-// MPU9250 imu; //6050 compatible. used for non dmp functionality. original code
 MS56XX baro;
 KalmanVario kf;
 VarioAudio audio;
@@ -206,8 +201,6 @@ void indicateUncalibratedAccelerometer() {
 		audio.GenerateTone(2000, 500);
 	}
 }
-
-
 
 
 // "no-activity" power down is indicated with a series of descending
@@ -351,7 +344,6 @@ bool calibration() {
 
 		if (numtries > 10) return false;
 	}
-
 }
 
 float runningAverageofCps(float cps)
@@ -371,12 +363,8 @@ float runningAverageofCps(float cps)
 	//Serial.printf("cps %d average cps %d old average %d vario samplecnt %d\r\n", int(cps),int(avgecps),int(oldvarioavge), variosamplecnt);
 	oldvarioavge = avgecps;
 
-	
 	return float(avgecps);
-
 }
-
-
 
 
 void setup() {
@@ -462,7 +450,7 @@ void setup() {
 	pinMode(PIN_INT, INPUT);
 	attachInterrupt(digitalPinToInterrupt(PIN_INT), DRDYInterruptHandler, RISING);
 
-	// configure MPU6050 to start generating gyro and accel data at 200Hz ODR	
+	// configure MPU6050 to start generating gyro and accel data at 100Hz ODR	
 	
 	// load and configure the DMP
 	Serial.println(F("Initializing DMP..."));
@@ -480,7 +468,6 @@ void setup() {
 	// to do this, indicated by a series of beeps. After calibration, the unit will generate another 
 	// tone, save the calibration parameters to flash, and continue with normal vario operation
 
-	
 	pinMode(PIN_CALIB, INPUT_PULLUP); digitalWrite(PIN_CALIB, HIGH);
 	int bCalibrateAccelerometer = 0;
 	// short beeps for ~5 seconds
@@ -583,7 +570,6 @@ void setup() {
 	//the actual environmental noise, ie from thermals, sinky air etc. But I've found 
 	//that the value chosen based on the noise measured during calibration seems to work well.
 	//
-	
 	kf.Config(kfzVariance, kazVariance, KF_ACCELBIAS_VARIANCE, baro.zCmAvg_, 0.0f, 0.0f);
 
 	initTime();
@@ -592,8 +578,6 @@ void setup() {
 	baroCounter = 0;
 	timeoutSeconds = 0;
 	Serial.printf("finshed setup\r\n");
-
-
 }
 
 
@@ -621,8 +605,6 @@ void loop() {
 				break;
 			}
 		}
-
-
 	}
 
 	// get INT_STATUS byte
@@ -658,20 +640,8 @@ void loop() {
 		mpu.dmpGetGravity(&gravity, &q);
 		mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
 		mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-		/*Serial.print("aworld\t");
-		Serial.print(aaWorld.x);
-		Serial.print("\t");
-		Serial.print(aaWorld.y);
-		Serial.print("\t");
-		Serial.println(aaWorld.z);*/
 
 		mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-		// Serial.print("ypr\t");
-		// Serial.print(ypr[0] * 180/M_PI);
-		// Serial.print("\t");
-		// Serial.print(ypr[1] * 180/M_PI);
-		// Serial.print("\t");
-		// Serial.println(ypr[2] * 180/M_PI);
 	}
 
 	if (drdyFlag) { // new MPU6050 data ready, 100Hz ODR => ~10mS sample interval
@@ -733,6 +703,8 @@ void loop() {
 #endif	
 #ifdef NMEA_SERIAL
 				{
+					Serial.println();
+
 					// OPENVARIO-NMEA OUTPUT
 					// https://www.openvario.org/doku.php?id=projects:series_00:software:nmea
 					char szmsg[100];
@@ -751,7 +723,6 @@ void loop() {
 					uint8_t cksum = nmeaChecksum(szmsg);
 					sprintf(szcksum,"%02X\r\n", cksum);
 					strcat(szmsg, szcksum);
-					// Serial.println();
 					// Serial.printf(szmsg);
 				}
 
@@ -768,7 +739,6 @@ void loop() {
 					uint8_t cksum = nmeaChecksum(szmsg);
 					sprintf(szcksum,"%02X\r\n", cksum);
 					strcat(szmsg, szcksum);
-					// Serial.println();
 					Serial.printf(szmsg);
 				}
 				{
@@ -786,31 +756,11 @@ void loop() {
 					uint8_t cksum = nmeaChecksum(szmsg);
 					sprintf(szcksum,"%02X\r\n", cksum);
 					strcat(szmsg, szcksum);
-					// Serial.println();
 					Serial.printf(szmsg);
 				}
 
-				{
-					// PROP-NMEA OUTPUT
-					char szmsg[100];
-					char szcksum[5];
-					sprintf(szmsg, "$PFB,H,%.2f,I,%.2f,B,%.2f,A,%.2f,T,%.2f,E,%.2f*", 
-						RAD2DEG(ypr[0]),         // Heading == yaw  (deg)
-						RAD2DEG(ypr[1]),         // pItch           (deg)
-						RAD2DEG(ypr[2]),         // Bank == roll    (deg)
-						kfAltitudeCm/100.0f,     // Altitude        (m)
-						baro.tempCx100_/100.0f,  // Temperature (Celsius)
-						avgeCps/100.0f           // E: TE vario in m/s
-						);
-					uint8_t cksum = nmeaChecksum(szmsg);
-					sprintf(szcksum,"%02X\r\n", cksum);
-					strcat(szmsg, szcksum);
-					// Serial.println();
-					// Serial.printf(szmsg);
-				}
-
+				Serial.println();
 #endif	
-
 		}		
 	}
 }
